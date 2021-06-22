@@ -1,4 +1,30 @@
-# RetinaFace in PyTorch
+# Gestalt Engine's Face Cropper
+
+Running the `detect_pipe.py`-script will loop through all the images in a given directory, returning the cropped version of a detected face in each image.
+Using the default settings from the [Pytorch_Retinaface](https://github.com/biubug6/Pytorch_Retinaface) repository by @biubug6 results in sufficient cropped faces.
+
+The following command line arguments you can select some relevant settings (more can be found in code):
+| argument | options | description |
+|:-|:-|:-|
+| --images_dir | string with directory path | Location of the directory with the images to run the detector on. |
+| --save_dir | string with directory path | Desired location of the directory where cropped images will be saved to. |
+| --crop_size | int | Desired width and height of the resulting cropped face (default = 100) |
+| --use_subdirectories | sets flag on use | When set the `images_dir` directory given is expected to contain subdirectories (e.g. ../examples/{1,2,..,n}) |
+| --multiple_per_image | sets flag on use | When set allows multiple face detection per image, otherwise keeps only the most confident one. (Not extensively tested, not recommended for unsupervised use) |
+
+Running the code with the following settings will look for the `images_dir` in a data-directory and look for a single face in each image that is in the `images_dir` directory, not including subdirectories:
+```shell
+python detect_pipe.py --images_dir ../data/GestaltMatcherDB/images/ --save_dir ../data/GestaltMatcherDB/images_cropped/ 
+```
+The resulting detection are square cropped to 100x100 and saved in the `save_dir` directory.
+
+In the future this repository will be updated with new branches when different face detectors are used. 
+
+Below you can find more information from the original repository w.r.t. installation, performance, etc. of the model.
+
+---
+
+## RetinaFace in PyTorch
 
 A [PyTorch](https://pytorch.org/) implementation of [RetinaFace: Single-stage Dense Face Localisation in the Wild](https://arxiv.org/abs/1905.00641). Model size only 1.7M, when Retinaface use mobilenet0.25 as backbone net. We also provide resnet50 as backbone net to get better result. The official code in Mxnet can be found [here](https://github.com/deepinsight/insightface/tree/master/RetinaFace).
 
