@@ -53,6 +53,8 @@ parser.add_argument('--use_subdirectories', action="store_true", default=False,
                     help='When set saves in dirs in the "images_dir"')
 parser.add_argument('--crop_size', type=int, default=100,
                     help='Desired width and height of the resulting cropped face (default = 100)')
+parser.add_argument('--result_type', default='crop', type=str,
+                    help="Desired result type from pipeline, options: \'crop\' and \'coords\' (default: \'crop\')")
 args = parser.parse_args()
 
 
@@ -193,7 +195,7 @@ if __name__ == '__main__':
     net = load_model(net, args.trained_model, args.cpu)
     net.eval()
     print('Finished loading model!')
-    #print(net)
+
     cudnn.benchmark = True
     device = torch.device("cpu" if args.cpu else "cuda")
     net = net.to(device)
@@ -203,6 +205,9 @@ if __name__ == '__main__':
         print(f"--images_dir not set, using default: {args.images_dir}")
     source_dir = args.images_dir
 
+    if args.result_type != 'crop' and args.result_type != 'coords':
+        print(f"Invalid result type requested! (args.result_type: {args.result_type} given)")
+
     ## info logging
     print(f"Using images_dir: {args.images_dir}")
     print(f"Using save_dir: {args.save_dir}")
@@ -211,8 +216,14 @@ if __name__ == '__main__':
         print(f"Using save_dir_verbose: {args.save_dir_verbose}")
     print(f"Allowing multiple faces per image: {args.multiple_per_image}")
     print(f"Using subdirectories: {args.use_subdirectories}")
+    print(f"Desired result type: {args.result_type}")
     ##
 
+    coords_file = None
+    if args.result_type == 'coords':
+        coords_file = open(f"{args.save_dir}face_coords.csv", 'w+')  # open file in override mode
+        coords_file.write('img,x1,y1,x2,y2\n')
+        print("Created \'coords.csv\' file to store the bounding box coords of the detected faces (on rotated images)")
     img_names = [y for x in os.walk(source_dir) for y in glob(os.path.join(x[0], '*.*'))]
 
     ## If model freezes somewhere halfway.. use this snippet to continue from that point
@@ -223,7 +234,7 @@ if __name__ == '__main__':
     #         break
     # print(start_idx)
     # img_names = img_names[start_idx-1::]
-    print(img_names)
+
     for img_path in img_names:
         save_dir = f"{args.save_dir}"
         save_dir_verbose = f"{args.save_dir_verbose}"
@@ -232,7 +243,6 @@ if __name__ == '__main__':
             subdir_name = (img_path.split('/')[-1]).split('\\')[0]
             save_dir = f"{save_dir}/{subdir_name}"
             save_dir_verbose = f"{save_dir_verbose}/{subdir_name}"
-            print(subdir_name)
             print(save_dir)
 
         os.makedirs(f"{save_dir}", exist_ok=True)
@@ -274,7 +284,7 @@ if __name__ == '__main__':
             tic = time.time()
             with torch.no_grad():
                 loc, conf, landms = net(img)  # forward pass
-            print('net forward time on {}: {:.4f}'.format(img_path, time.time() - tic))
+            # print('net forward time on {}: {:.4f}'.format(img_path, time.time() - tic))
 
             priorbox = PriorBox(cfg, image_size=(im_height, im_width))
             priors = priorbox.forward()
@@ -337,7 +347,11 @@ if __name__ == '__main__':
                     if not is_correct_orientation(b):
                         continue
 
-                    # TODO: In the future we will want to return coords+rotation rather than the cropped image (for data augmentation)
+                    if args.result_type == 'coords':
+                        d = list(map(int, b))
+                        coords_file.write(f"{img_name}_{str(idx) + '_' if args.multiple_per_image else ''}rot.jpg,"
+                                          f"{str(d[0:4]).replace('[','').replace(']','').replace(' ','')}\n")
+
                     # Attempt to crop relevant face box
                     img_rot = TF.to_pil_image(img_rot)
                     img_crop = img_rot.crop((b[0], b[1], b[2], b[3]))
@@ -345,20 +359,32 @@ if __name__ == '__main__':
                     # create squared rotated crop
                     img_square_crop = img_crop.resize((args.crop_size, args.crop_size))
                     img_square_crop = np.ascontiguousarray(img_square_crop)
-                    cv2.imwrite(
-                        f"{save_dir}/{img_name}_{str(idx) + '_' if args.multiple_per_image else ''}crop_square.jpg",
-                        img_square_crop)
+                    if args.result_type == 'crop':
+                        cv2.imwrite(
+                            f"{save_dir}/{img_name}_{str(idx) + '_' if args.multiple_per_image else ''}crop_square.jpg",
+                            img_square_crop)
+                    elif args.result_type == 'coords' and args.save_image_verbose:
+                        cv2.imwrite(
+                            f"{save_dir_verbose}/{img_name}_{str(idx) + '_' if args.multiple_per_image else ''}crop_square.jpg",
+                            img_square_crop)
 
                     # create (aspect ratio) squared rotated crop padded with black pixels
                     img_square_padded_crop = resize_square_aspect(img_crop, args.crop_size)
 
+                    # Save rotated image (not verbose when it's the desired result type)
+                    img_rot = np.ascontiguousarray(img_rot)
+                    if args.result_type == 'coords':
+                        cv2.imwrite(
+                            f"{save_dir}/{img_name}_{str(idx) + '_' if args.multiple_per_image else ''}rot.jpg",
+                            img_rot)
                     # Save intermediate verbose images (rots, crops, boxes, etc.)
                     if args.save_image_verbose:
                         # save rotated detection
-                        img_rot = np.ascontiguousarray(img_rot)
-                        cv2.imwrite(
-                            f"{save_dir_verbose}/{img_name}_{str(idx) + '_' if args.multiple_per_image else ''}rot.jpg",
-                            img_rot)
+
+                        if args.result_type == 'crop':
+                            cv2.imwrite(
+                                f"{save_dir_verbose}/{img_name}_{str(idx) + '_' if args.multiple_per_image else ''}rot.jpg",
+                                img_rot)
 
                         # save square cropped and padded detection
                         img_square_padded_crop = np.ascontiguousarray(img_square_padded_crop)
@@ -396,3 +422,6 @@ if __name__ == '__main__':
                                 , img_raw)
 
             first = not first
+
+    coords_file.flush()
+    coords_file.close()
