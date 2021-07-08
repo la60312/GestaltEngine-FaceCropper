@@ -11,7 +11,7 @@ The following command line arguments you can select some relevant settings (more
 | --crop_size | int | Desired width and height of the resulting cropped face (default = 100) |
 | --use_subdirectories | sets flag on use | When set the `images_dir` directory given is expected to contain subdirectories (e.g. ../examples/{1,2,..,n}) |
 | --multiple_per_image | sets flag on use | When set allows multiple face detection per image, otherwise keeps only the most confident one. (Not extensively tested, not recommended for unsupervised use) |
-| --result_type | 'crop' or 'coords' | Desired result type from the pipeline; default is cropped images, alternative is a *.csv with bbox coords of the faces |
+| --result_type | `crop` or `coords` | Desired result type from the pipeline; default is cropped images, alternatively bbox coords of the rotated faces will be stored in `face_coords.csv` |
 
 Running the code with the following settings will look for the `images_dir` in a data-directory and look for a single face in each image that is in the `images_dir` directory, not including subdirectories:
 ```shell
