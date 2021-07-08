@@ -55,6 +55,9 @@ parser.add_argument('--crop_size', type=int, default=100,
                     help='Desired width and height of the resulting cropped face (default = 100)')
 parser.add_argument('--result_type', default='crop', type=str,
                     help="Desired result type from pipeline, options: \'crop\' and \'coords\' (default: \'crop\')")
+parser.add_argument('--fill_color', default=0.5,
+                    help="Color (float) that will be used to fill in the expanded regions after rotation (default: 0.5)")
+
 args = parser.parse_args()
 
 
@@ -130,7 +133,10 @@ def rotate_image(image, landmarks):
 
     # rot_mat = cv2.getRotationMatrix2D(tuple(np.array(image.shape[1::-1]) / 2), angle_degrees, 1.0)
     rot_mat = cv2.getRotationMatrix2D(tuple(nose), angle_degrees, 1.0)
-    result = cv2.warpAffine(image, rot_mat, image.shape[1::-1], flags=cv2.INTER_LINEAR)
+
+    # Background fill color is set to 0.5 to 0 when centered around [-1,1]
+    fill = int(args.fill_color * 256)
+    result = cv2.warpAffine(image, rot_mat, image.shape[1::-1], flags=cv2.INTER_LINEAR, borderValue=(fill,fill,fill))
 
     # plt.imshow(result)
     # plt.show()
@@ -221,10 +227,14 @@ if __name__ == '__main__':
 
     coords_file = None
     if args.result_type == 'coords':
+        os.makedirs(f"{args.save_dir}", exist_ok=True)
         coords_file = open(f"{args.save_dir}face_coords.csv", 'w+')  # open file in override mode
         coords_file.write('img,x1,y1,x2,y2\n')
         print("Created \'coords.csv\' file to store the bounding box coords of the detected faces (on rotated images)")
     img_names = [y for x in os.walk(source_dir) for y in glob(os.path.join(x[0], '*.*'))]
+
+    # List containing the file names of all images that were skipped due to incorrect face orientation
+    missed_images = []
 
     ## If model freezes somewhere halfway.. use this snippet to continue from that point
     # start_idx = -1
@@ -345,6 +355,7 @@ if __name__ == '__main__':
 
                     # Check if the orientation of the face is correct: i.e. rear or frontal facing
                     if not is_correct_orientation(b):
+                        missed_images.append(img_name)
                         continue
 
                     if args.result_type == 'coords':
@@ -423,5 +434,8 @@ if __name__ == '__main__':
 
             first = not first
 
-    coords_file.flush()
-    coords_file.close()
+    if args.result_type == 'coords':
+        coords_file.flush()
+        coords_file.close()
+
+    print(missed_images)
