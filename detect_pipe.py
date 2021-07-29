@@ -213,6 +213,7 @@ if __name__ == '__main__':
 
     if args.result_type != 'crop' and args.result_type != 'coords':
         print(f"Invalid result type requested! (args.result_type: {args.result_type} given)")
+        exit()
 
     ## info logging
     print(f"Using images_dir: {args.images_dir}")
@@ -353,10 +354,10 @@ if __name__ == '__main__':
                         img_rot = rotate_image(img_raw, b)
                         continue
 
-                    # Check if the orientation of the face is correct: i.e. rear or frontal facing
-                    if not is_correct_orientation(b):
-                        missed_images.append(img_name)
-                        continue
+                    # # Check if the orientation of the face is correct: i.e. rear or frontal facing
+                    # if not is_correct_orientation(b):
+                    #     missed_images.append(img_name)
+                    #     continue
 
                     if args.result_type == 'coords':
                         d = list(map(int, b))
@@ -438,4 +439,4 @@ if __name__ == '__main__':
         coords_file.flush()
         coords_file.close()
 
-    print(missed_images)
+    print(f"{missed_images=}")
