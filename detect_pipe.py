@@ -232,7 +232,10 @@ if __name__ == '__main__':
         coords_file = open(f"{args.save_dir}face_coords.csv", 'w+')  # open file in override mode
         coords_file.write('img,x1,y1,x2,y2\n')
         print("Created \'coords.csv\' file to store the bounding box coords of the detected faces (on rotated images)")
-    img_names = [y for x in os.walk(source_dir) for y in glob(os.path.join(x[0], '*.*'))]
+    if os.path.isfile(source_dir):
+        img_names = [source_dir]
+    else:
+        img_names = [y for x in os.walk(source_dir) for y in glob(os.path.join(x[0], '*.*'))]
 
     # List containing the file names of all images that were skipped due to incorrect face orientation
     missed_images = []
@@ -260,7 +263,8 @@ if __name__ == '__main__':
         if args.save_image_verbose:
             os.makedirs(f"{save_dir_verbose}", exist_ok=True)
 
-        img_name = (img_path.split('\\')[-1]).split('.')[0]
+        # img_name = (img_path.split('\\')[-1]).split('.')[0]
+        img_name = os.path.basename(img_path).split('.')[0]
 
         # We'll run the detection twice:
         #    first: Correct the image rotation
@@ -372,6 +376,7 @@ if __name__ == '__main__':
                     img_square_crop = img_crop.resize((args.crop_size, args.crop_size))
                     img_square_crop = np.ascontiguousarray(img_square_crop)
                     if args.result_type == 'crop':
+                        print(f"{save_dir}/{img_name}_{str(idx) + '_' if args.multiple_per_image else ''}crop_square.jpg")
                         cv2.imwrite(
                             f"{save_dir}/{img_name}_{str(idx) + '_' if args.multiple_per_image else ''}crop_square.jpg",
                             img_square_crop)
@@ -439,4 +444,4 @@ if __name__ == '__main__':
         coords_file.flush()
         coords_file.close()
 
-    print(f"{missed_images=}")
+    print(f"{missed_images}")
